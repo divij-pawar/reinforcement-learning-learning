@@ -3,10 +3,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pickle 
 
-def run(episodes, render=False):
-    env = gym.make('FrozenLake-v1', map_name="8x8", is_slippery=False, render_mode='human' if render else None)
+def run(episodes,is_training=True, render=False):
+    env = gym.make('FrozenLake-v1', map_name="8x8", is_slippery=True, render_mode='human' if render else None)
 
-    q = np.zeros((env.observation_space.n,env.action_space.n))
+    if(is_training):
+        q = np.zeros((env.observation_space.n,env.action_space.n)) # create a q array of 64x4 grid
+    else:
+        f = open('frozen_lake8x8.pkl','rb')
+        q = pickle.load(f)
+        f.close()
 
     learning_rate_a = 0.9 #alpha or learning rate
     discount_factor_g = 0.9 # gamma or discount factor
@@ -24,12 +29,13 @@ def run(episodes, render=False):
 
 
         while (not terminated and not truncated):
-            if rng.random() <epsilon:
+            if is_training and rng.random() <epsilon:
                 action = env.action_space.sample() #actions: 0-left 1-down 2-right 3-up
             else:
-                action = np.argmax(q[state,:])
+                action = np.argmax(q[state,:]) # Returns the position of max q value in the row
 
-            new_state,reward,terminated,truncated,_ = env.step(action)
+            # Executing the action decided and returns the new state and parameters like reward, terminated, truncated
+            new_state,reward,terminated,truncated,_ = env.step(action) 
 
             q[state,action] = q[state,action] + learning_rate_a * ( 
                 reward + discount_factor_g * np.max(q[new_state,:]) - q[state,action]
@@ -37,7 +43,7 @@ def run(episodes, render=False):
             state = new_state
 
 
-        epsilon = max(epsilon - epsilon_decay_rate, 0)
+        epsilon = max(epsilon - epsilon_decay_rate, 0) # Updating epsilon and ensuring it stays positive
 
         if (epsilon==0):
             learning_rate_a = 0.0001
@@ -53,11 +59,12 @@ def run(episodes, render=False):
     plt.plot(sum_rewards)
     plt.savefig('frozen_lake8x8.png')
 
-    f = open("frozen_lake8x8.pkl","wb")
-    pickle.dump(q,f)
-    f.close()
+    if is_training:
+        f = open("frozen_lake8x8.pkl","wb")
+        pickle.dump(q,f)
+        f.close()
 
 
 
 if __name__ == '__main__':
-    run(15000)
+    run(15000, is_training=False, render=True)
